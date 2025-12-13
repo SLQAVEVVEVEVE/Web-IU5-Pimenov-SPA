@@ -8,7 +8,9 @@ import './index.css'
 import App from './App.tsx'
 import { store } from './store'
 
-const isTauri = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_IPC__' in window)
+const isTauri =
+  import.meta.env.MODE === 'tauri' ||
+  (typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_IPC__' in window))
 const Router = isTauri ? HashRouter : BrowserRouter
 
 if (!isTauri) {
@@ -17,6 +19,13 @@ if (!isTauri) {
   } catch (error) {
     console.warn('PWA service worker registration failed', error)
   }
+} else if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+    .catch(() => {
+      // ignore cleanup errors
+    })
 }
 
 createRoot(document.getElementById('root')!).render(

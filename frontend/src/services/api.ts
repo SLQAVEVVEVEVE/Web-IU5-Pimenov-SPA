@@ -1,7 +1,9 @@
 import { mockBeams } from '../data/mockBeams'
 import type { Beam, BeamFilters, BeamsResponse } from '../types'
 
-const isTauri = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_IPC__' in window)
+const isTauri =
+  import.meta.env.MODE === 'tauri' ||
+  (typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_IPC__' in window))
 const apiBaseFromEnv = (isTauri ? import.meta.env.VITE_TAURI_API_BASE : import.meta.env.VITE_API_BASE) || '/api'
 const API_BASE = apiBaseFromEnv.replace(/\/$/, '')
 
