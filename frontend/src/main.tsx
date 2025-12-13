@@ -8,12 +8,16 @@ import './index.css'
 import App from './App.tsx'
 import { store } from './store'
 
-registerSW({
-  immediate: true,
-})
-
-const isTauri = typeof window !== 'undefined' && '__TAURI_IPC__' in window
+const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
 const Router = isTauri ? HashRouter : BrowserRouter
+
+if (!isTauri) {
+  try {
+    registerSW({ immediate: true })
+  } catch (error) {
+    console.warn('PWA service worker registration failed', error)
+  }
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
