@@ -4,9 +4,7 @@
   "version": "0.1.0",
   "identifier": "io.slqavevveveve.beamspa",
   "plugins": {
-    "http": {
-      "enabled": true
-    }
+    "http": null
   },
   "build": {
     "frontendDist": "../frontend/dist",

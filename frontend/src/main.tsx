@@ -8,7 +8,7 @@ import './index.css'
 import App from './App.tsx'
 import { store } from './store'
 
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window
+const isTauri = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_IPC__' in window)
 const Router = isTauri ? HashRouter : BrowserRouter
 
 if (!isTauri) {
