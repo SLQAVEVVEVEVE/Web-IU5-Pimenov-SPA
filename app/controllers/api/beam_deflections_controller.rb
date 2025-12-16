@@ -47,8 +47,6 @@ module Api
           status: bd.status,
           formed_at: bd.formed_at,
           completed_at: bd.completed_at,
-          length_m: bd.length_m,
-          udl_kn_m: bd.udl_kn_m,
           note: bd.note,
           creator_login: bd.creator&.email,
           moderator_login: bd.moderator&.email,
@@ -93,11 +91,13 @@ module Api
       return render_error('Request must be in draft status', :unprocessable_entity) unless @beam_deflection.draft?
       return render_error('Not authorized', :forbidden) unless @beam_deflection.creator == Current.user
 
-      unless @beam_deflection.length_m.present? && @beam_deflection.udl_kn_m.present? && @beam_deflection.beam_deflection_beams.exists?
-        return render_error('Required fields missing or empty cart', :unprocessable_entity)
-      end
+      items = @beam_deflection.beam_deflection_beams
+      return render_error('Empty cart', :unprocessable_entity) unless items.exists?
 
-      @beam_deflection.update!(status: BeamDeflectionScopes::STATUSES[:formed], formed_at: Time.current)
+      missing = items.where(length_m: nil).or(items.where(udl_kn_m: nil)).exists?
+      return render_error('Required fields missing', :unprocessable_entity) if missing
+
+      @beam_deflection.update!(status: BeamDeflection::STATUSES[:formed], formed_at: Time.current)
       render json: serialize_beam_deflection(@beam_deflection)
     rescue => e
       render_error(@beam_deflection.errors.full_messages.presence || e.message, :unprocessable_entity)
@@ -110,18 +110,14 @@ module Api
       end
 
       # compute results per LR rules
-      total = @beam_deflection.compute_result!
-      ratio = @beam_deflection.beams.minimum(:allowed_deflection_ratio).to_f
-      max_allowed = ratio.positive? ? (@beam_deflection.length_m.to_f * 1000.0 / ratio) : Float::INFINITY
-      within = total <= max_allowed
+      result = @beam_deflection.compute_result!
 
       @beam_deflection.update!(
-        status: BeamDeflectionScopes::STATUSES[:completed],
+        status: BeamDeflection::STATUSES[:completed],
         moderator: Current.user,
         completed_at: Time.current,
-        result_deflection_mm: total,
-        within_norm: within,
-        calculated_at: Time.current
+        result_deflection_mm: result[:total_deflection_mm],
+        within_norm: result[:within_norm]
       )
       render json: serialize_beam_deflection(@beam_deflection)
     rescue => e
@@ -138,7 +134,7 @@ module Api
       end
 
       @beam_deflection.update!(
-        status: BeamDeflectionScopes::STATUSES[:rejected],
+        status: BeamDeflection::STATUSES[:rejected],
         moderator: Current.user,
         completed_at: Time.current
       )
@@ -150,7 +146,7 @@ module Api
     # DELETE /api/requests/:id
     def destroy
       return render_error('Not authorized', :forbidden) unless @beam_deflection.creator == Current.user
-      @beam_deflection.update!(status: BeamDeflectionScopes::STATUSES[:deleted], completed_at: Time.current)
+      @beam_deflection.update!(status: BeamDeflection::STATUSES[:deleted], completed_at: Time.current)
       head :no_content
     rescue => e
       render_error(@beam_deflection.errors.full_messages.presence || e.message, :unprocessable_entity)
@@ -165,7 +161,7 @@ module Api
     end
 
     def beam_deflection_params
-      params.require(:beam_deflection).permit(:length_m, :udl_kn_m, :note)
+      params.require(:beam_deflection).permit(:note)
     end
 
     def check_owner
@@ -189,6 +185,8 @@ module Api
           beam_material: beam&.material,
           beam_image_url: beam&.respond_to?(:image_url) ? beam&.image_url : beam&.try(:image_key),
           quantity: bdb.quantity,
+          length_m: bdb.length_m,
+          udl_kn_m: bdb.udl_kn_m,
           position: bdb.position,
           deflection_mm: bdb.deflection_mm
         }
@@ -197,8 +195,6 @@ module Api
       {
         id: bd.id,
         status: bd.status,
-        length_m: bd.length_m,
-        udl_kn_m: bd.udl_kn_m,
         deflection_mm: bd.deflection_mm,
         within_norm: bd.within_norm,
         note: bd.note,

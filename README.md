@@ -7,7 +7,7 @@ Rails 8 app that lets users calculate beam deflections through a web UI and a RE
 - Run stack: `docker-compose up --build`.
 - Prep DB: `docker-compose exec web bin/rails db:prepare`.
 - Optional demo data and tokens: `docker-compose exec web bin/rails runner utilities/scripts/prepare_demo.rb` (creates `user@demo.com` and `moderator@demo.com`, both `password123`).
-- Open web UI: http://localhost:3000, API docs: http://localhost:3000/api-docs, API base: http://localhost:3000/api.
+- Open web UI (HTTPS): https://localhost:8080 (self-signed); backend (Rails API, HTTPS): https://localhost:3000; API docs: /api-docs, API base: /api.
 
 ## Auth quick reference
 - Sign up: `POST /api/auth/sign_up`

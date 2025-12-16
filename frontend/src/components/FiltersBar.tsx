@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Col, Form, Row } from 'react-bootstrap'
 import type { BeamFilters } from '../types'
 
-export const MATERIAL_PRESETS: Record<string, { min: number; max: number }> = {
+const MATERIAL_PRESETS: Record<string, { min: number; max: number }> = {
   steel: { min: 260, max: 320 },
   wooden: { min: 230, max: 280 },
   reinforced_concrete: { min: 360, max: 450 },
@@ -96,7 +96,7 @@ export function FiltersBar({ filters, onChange, onSubmit, disabled, onReset }: P
         </Col>
       </Row>
       <div className="filters-actions-row">
-        <Button type="submit" variant="primary" className="filters-apply" disabled={disabled}>
+        <Button type="submit" variant="accent" className="filters-apply" disabled={disabled}>
           Применить
         </Button>
         <Button variant="outline-secondary" className="filters-reset" onClick={reset} disabled={disabled}>

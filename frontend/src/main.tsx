@@ -13,7 +13,10 @@ const isTauri =
   (typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_IPC__' in window))
 const Router = isTauri ? HashRouter : BrowserRouter
 
-if (!isTauri) {
+const enablePwaInDev = import.meta.env.VITE_PWA_DEV === 'true'
+const shouldRegisterSW = !isTauri && (import.meta.env.PROD || enablePwaInDev)
+
+if (shouldRegisterSW) {
   try {
     registerSW({ immediate: true })
   } catch (error) {

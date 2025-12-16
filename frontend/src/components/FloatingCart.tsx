@@ -1,10 +1,12 @@
+import { Link } from 'react-router-dom'
+
 interface Props {
-  href: string
+  to: string
   count: number
   disabled?: boolean
 }
 
-export function FloatingCart({ href, count, disabled }: Props) {
+export function FloatingCart({ to, count, disabled }: Props) {
   const cartIconUrl = `${import.meta.env.BASE_URL}cart.png`
 
   if (disabled) {
@@ -24,10 +26,10 @@ export function FloatingCart({ href, count, disabled }: Props) {
   }
 
   return (
-    <a className="fab-cart" href={href} title="Открыть заявку" aria-label="Открыть заявку">
+    <Link className="fab-cart" to={to} title="Открыть заявку" aria-label="Открыть заявку">
       <img src={cartIconUrl} alt="" className="fab-cart__icon" />
       <span className="fab-cart__badge">{count}</span>
       <span className="sr-only">В заявке: {count}</span>
-    </a>
+    </Link>
   )
 }

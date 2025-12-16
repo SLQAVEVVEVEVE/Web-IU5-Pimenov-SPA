@@ -12,6 +12,7 @@ export default defineConfig(async ({ mode }) => {
   const isTauri = mode === 'tauri' || !!env.TAURI_PLATFORM
   const base = isTauri ? './' : env.VITE_BASE_PATH || '/'
   const apiTarget = process.env.VITE_DEV_API_TARGET || env.VITE_DEV_API_TARGET || 'http://localhost:3000'
+  const enablePwaInDev = env.VITE_PWA_DEV === 'true'
 
   let mkcertPlugin: PluginOption | null = null
   try {
@@ -63,7 +64,7 @@ export default defineConfig(async ({ mode }) => {
           globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
         },
         devOptions: {
-          enabled: true,
+          enabled: enablePwaInDev,
         },
       }),
     ],
@@ -80,6 +81,7 @@ export default defineConfig(async ({ mode }) => {
         '/api': {
           target: apiTarget,
           changeOrigin: true,
+          secure: false,
         },
       },
     },

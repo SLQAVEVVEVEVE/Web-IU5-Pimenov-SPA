@@ -1,146 +1,46 @@
-# Deployment Diagram - Beam Deflection Calculator
+# Диаграмма развертывания (Deployment Diagram)
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                   Development Machine (localhost)                       │
-│                                                                         │
-│  ┌─────────────────┐         ┌────────────────────────────────────┐    │
-│  │     Tauri       │         │            Docker                  │    │
-│  │  Desktop App    │         │                                    │    │
-│  │                 │         │  ┌──────────────────────────────┐  │    │
-│  │   Port: 8443    │◄────────┼─►│   Rails API (web)            │  │    │
-│  └─────────────────┘         │  │   Port: 3000                 │  │    │
-│                               │  └──────────────┬───────────────┘  │    │
-│  ┌─────────────────┐         │                 │                  │    │
-│  │     Vite        │         │  ┌──────────────▼───────────────┐  │    │
-│  │   Dev Server    │         │  │   PostgreSQL                 │  │    │
-│  │                 │         │  │   Port: 5432                 │  │    │
-│  │   Port: 5173    │◄────────┼─►└──────────────────────────────┘  │    │
-│  │                 │         │                                    │    │
-│  │ (Proxy /api     │         │  ┌──────────────────────────────┐  │    │
-│  │  to :3000)      │         │  │   Redis                      │  │    │
-│  └─────────────────┘         │  │   Port: 6379                 │  │    │
-│                               │  │   (JWT blacklist)            │  │    │
-│         │                     │  └──────────────────────────────┘  │    │
-│         │                     │                                    │    │
-│         │                     │  ┌──────────────────────────────┐  │    │
-│         │                     │  │   MinIO S3                   │  │    │
-│         │                     │  │   API: 9000                  │  │    │
-│         │                     │  │   Console: 9001              │  │    │
-│         │                     │  │   (Beam images storage)      │  │    │
-│         │                     │  └──────────────────────────────┘  │    │
-│         │                     └────────────────────────────────────┘    │
-│         │                                                                │
-│  ┌──────▼──────────┐                                                    │
-│  │   PWA Manifest  │                                                    │
-│  │   Service Worker│                                                    │
-│  └─────────────────┘                                                    │
-└───────────────────────────────────────────────────────────────────────┘
+Источники для диаграммы: `docker-compose.yml`, `nginx/nginx.conf`, `swagger/v1/swagger.yaml`, `.env`.
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Client Devices                                  │
-│                                                                           │
-│  ┌──────────────────────┐              ┌──────────────────────────┐    │
-│  │   Desktop/Laptop     │              │   Mobile Phone           │    │
-│  │                      │              │                          │    │
-│  │  ┌────────────────┐  │              │  ┌────────────────┐      │    │
-│  │  │   Chrome       │  │              │  │   Chrome       │      │    │
-│  │  │                │  │              │  │                │      │    │
-│  │  │   PWA App      │  │              │  │   PWA App      │      │    │
-│  │  └────────────────┘  │              │  └────────────────┘      │    │
-│  └──────────┬───────────┘              └───────────┬──────────────┘    │
-│             │                                      │                    │
-│             └──────────────────┬───────────────────┘                    │
-│                                │                                        │
-└────────────────────────────────┼────────────────────────────────────────┘
-                                 │
-                                 │ HTTPS
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         GitHub Pages                                     │
-│                      https://mopolop.github.io                           │
-│                                                                           │
-│  ┌───────────────────────────────────────────────────────────────┐      │
-│  │  Static Files (index.html, JS, CSS, assets)                   │      │
-│  │  + PWA Service Worker                                          │      │
-│  └───────────────────────────────────────────────────────────────┘      │
-│                                                                           │
-│  Deployment: npm run deploy (gh-pages -d dist)                          │
-└─────────────────────────────────────────────────────────────────────────┘
+## Docker Compose (локально / один сервер)
+
+```mermaid
+flowchart TB
+  subgraph C["Клиент"]
+    browser["Браузер / PWA"]
+    tauri["Tauri desktop app"]
+  end
+
+  subgraph H["Хост (localhost)"]
+    subgraph D["Docker Compose (Docker)"]
+      https_srv["HTTPS-сервер<br/>(reverse proxy + статика)<br/>:443 (host 8080)"]
+      vite["Frontend: Node 20 + Vite<br/>React SPA (dev)<br/>:5173 (HTTPS)"]
+      rails["Web-сервис: Ruby on Rails 8<br/>REST API + web pages<br/>:3000 (HTTPS) (host 3000)"]
+
+      pg[("PostgreSQL 15<br/>:5432")]
+      redis[("Redis 7<br/>:6379")]
+      minio[("MinIO (S3)<br/>API :9000<br/>Console :9001")]
+    end
+  end
+
+  browser -->|HTTPS 8080<br/>UI + REST JSON API (/api)| https_srv
+  tauri -->|HTTPS 8080<br/>REST JSON API (/api)| https_srv
+
+  https_srv -->|proxy / (HTTPS 5173)<br/>HMR WebSocket| vite
+  https_srv -->|proxy /api/*, /api-docs, /api-json, /cart<br/>HTTPS 3000| rails
+
+  rails -->|TCP 5432| pg
+  rails -->|TCP 6379<br/>JWT blacklist| redis
+  rails -->|HTTP 9000<br/>S3 API (upload/presign)| minio
+
+  browser -.->|HTTP 9000<br/>beam images (public)| minio
+  browser -.->|HTTP 9001<br/>MinIO Console (опционально)| minio
 ```
 
-## Компоненты системы
+## Точки входа (по умолчанию)
 
-### Development Environment (localhost)
-
-1. **Tauri Desktop App** (Port: 8443)
-   - Кросс-платформенное desktop приложение
-   - Rust backend + React frontend
-   - Прямой доступ к Rails API
-
-2. **Vite Dev Server** (Port: 5173)
-   - React development server
-   - Hot Module Replacement (HMR)
-   - Proxy для `/api` → `localhost:3000`
-   - PWA с Service Worker
-
-3. **Docker Services**:
-   - **Rails API** (Port: 3000)
-     - REST JSON API
-     - JWT authentication
-     - Beam deflection calculations
-
-   - **PostgreSQL** (Port: 5432)
-     - Primary database
-     - Users, beams, deflections
-
-   - **Redis** (Port: 6379)
-     - JWT token blacklist
-     - Session management
-
-   - **MinIO S3** (Ports: 9000/9001)
-     - Object storage для beam images
-     - S3-compatible API
-
-### Production Environment
-
-**GitHub Pages** (https://mopolop.github.io)
-- Static hosting для PWA
-- Deploy через `gh-pages` package
-- CDN delivery
-- HTTPS by default
-
-## Потоки данных
-
-1. **Development Flow**:
-   - Browser → Vite (:5173) → Rails API (:3000)
-   - Tauri App → Rails API (:3000)
-   - Rails → PostgreSQL (:5432)
-   - Rails → Redis (:6379) для JWT
-   - Rails → MinIO (:9000) для изображений
-
-2. **Production Flow**:
-   - Client Device → GitHub Pages (HTTPS)
-   - PWA → External Rails API (если настроен production backend)
-
-## Deployment
-
-```bash
-# Development
-docker-compose up --build
-npm run dev  # Vite на :5173
-
-# Production Build & Deploy
-cd frontend
-npm run build      # Build в dist/
-npm run deploy     # Deploy на GitHub Pages
-```
-
-## Технологии
-
-- **Frontend**: React 19 + TypeScript + Vite + Redux Toolkit + Bootstrap
-- **Backend**: Ruby on Rails 8 + PostgreSQL + Redis + MinIO
-- **Desktop**: Tauri 2 (Rust)
-- **DevOps**: Docker Compose
-- **Deploy**: GitHub Pages + gh-pages
-- **PWA**: vite-plugin-pwa (Workbox)
+- Вход в приложение (HTTPS-сервер): `https://localhost:8080`
+- Backend (Rails, порт 3000): `https://localhost:3000`
+- API: `/api/*` (JWT), Swagger UI: `/api-docs`, OpenAPI JSON: `/api-json`
+- PostgreSQL: `localhost:5432`, Redis: `localhost:6379`
+- MinIO: `http://localhost:9000` (S3), `http://localhost:9001` (console)
